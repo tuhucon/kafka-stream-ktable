@@ -48,7 +48,7 @@ public class KafkaStreamKtableApplication implements CommandLineRunner {
 
         inputStream
                 .groupBy((k, v) -> v.getId(), Serialized.with(Serdes.Integer(), ItemSerdes.itemSerdes()))
-                .windowedBy(TimeWindows.of(20 * 1000L).until(1000L * 60 * 15))
+                .windowedBy(TimeWindows.of(5 * 60 * 1000L).until(1000L * 60 * 15).advanceBy(60 * 1000L))
                 .count()
                 .toStream()
                 .peek((k, v) -> System.out.println(k.toString() + ": " + v));
