@@ -48,15 +48,22 @@ public class KafkaStreamKtableApplication implements CommandLineRunner {
 
         inputStream
                 .groupBy((k, v) -> v.getId(), Serialized.with(Serdes.Integer(), ItemSerdes.itemSerdes()))
-                .aggregate(() -> 1L, (key, value, aggregate) -> {
-                    if (aggregate == null) return (long) value.getCount();
-                    return aggregate * value.getCount();
-                }, Materialized.with(Serdes.Integer(), Serdes.Long()))
+                .windowedBy(SessionWindows.with(1000L * 20).until(15 * 60 * 1000L))
+                .aggregate(
+                        () -> 1L,
+                        (key, value, aggregate) -> {
+                            if (aggregate == null) return (long) value.getCount();
+                            return aggregate * value.getCount();
+                        },
+                        (aggKey, aggOne, aggTwo) -> aggOne * aggTwo,
+                        Materialized.with(Serdes.Integer(), Serdes.Long())
+                )
                 .toStream()
                 .peek((k, v) -> System.out.println(k.toString() + ": " + v.toString()));
 
         Topology topology = streamsBuilder.build();
         System.out.println(topology.describe());
+
 
 
         KafkaStreams kafkaStreams = new KafkaStreams(topology, properties);
