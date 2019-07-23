@@ -41,25 +41,17 @@ public class KafkaStreamKtableApplication implements CommandLineRunner {
         Properties properties = new Properties();
         properties.put(StreamsConfig.APPLICATION_ID_CONFIG, "ktable1");
         properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        properties.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0);
+//        properties.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0);
 
         StreamsBuilder streamsBuilder = new StreamsBuilder();
         KStream<String, Item> inputStream = streamsBuilder.stream("ktable", Consumed.with(Serdes.String(), ItemSerdes.itemSerdes()));
 
         inputStream
                 .groupBy((k, v) -> v.getId(), Serialized.with(Serdes.Integer(), ItemSerdes.itemSerdes()))
-                .windowedBy(SessionWindows.with(1000L * 20).until(15 * 60 * 1000L))
-                .aggregate(
-                        () -> 1L,
-                        (key, value, aggregate) -> {
-                            if (aggregate == null) return (long) value.getCount();
-                            return aggregate * value.getCount();
-                        },
-                        (aggKey, aggOne, aggTwo) -> aggOne * aggTwo,
-                        Materialized.with(Serdes.Integer(), Serdes.Long())
-                )
+                .windowedBy(TimeWindows.of(20 * 1000L).until(1000L * 60 * 15))
+                .count()
                 .toStream()
-                .peek((k, v) -> System.out.println(k.toString() + ": " + v.toString()));
+                .peek((k, v) -> System.out.println(k.toString() + ": " + v));
 
         Topology topology = streamsBuilder.build();
         System.out.println(topology.describe());
